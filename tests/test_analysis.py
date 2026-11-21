@@ -4,14 +4,16 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
 ANALYSIS = Path(__file__).resolve().parents[1] / "analysis"
 sys.path.insert(0, str(ANALYSIS))
-from adc_mip import read_histograms
+from adc_mip import read_histograms, run_metadata_label
 from fit import EDGES, GRID_START, STEP, dist, fit_accepted, fit_spectrum, mode
-from plot import garwood
+from lg_hg_slope import fit as gain_fit, fit_window, read_pairs
+from plot import garwood, plot_mpv, plot_spectra
 from refine import GAUSSIAN, estimate_peak
 from scipy.special import ndtr
 
@@ -28,6 +30,51 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(hist[0, 0, 0], 1)
             self.assertEqual(hist[1, 0, 1], 1)
             self.assertEqual(hist[0, 1, 127], 1)
+
+    def test_run_metadata(self):
+        label = run_metadata_label(1200, 3600)
+        self.assertEqual(label, "Duration: 1,200.00 s \u00b7 Triggers: 3,600 \u00b7 Trigger rate: 3.00 Hz")
+
+    def test_plot_headers_show_metadata_without_confidence_text(self):
+        label = run_metadata_label(1200, 3600)
+        counts = np.zeros((2, 16, 128), dtype=int)
+        counts[0, 0, 50] = 5
+        fit = {"mpv": 1800, "stat_low": 15, "stat_high": 22, "variation_lo": 1700,
+               "variation_hi": 1850, "curve_x": [1600, 1800, 2000],
+               "curve_y": [1, 5, 1], "model": GAUSSIAN}
+        captured = []
+
+        def check(figure, dest):
+            text = [item.get_text() for item in figure.texts]
+            self.assertIn(label, text)
+            self.assertFalse(any("68." in item or "confidence" in item for item in text))
+            captured.append(dest.name)
+
+        with patch("plot.save", side_effect=check):
+            plot_spectra(counts, Path("."), "Synthetic", label, "", 60)
+            plot_spectra(counts, Path("."), "Synthetic", label, "", 65, {"LG00": fit})
+            plot_mpv({"LG00": fit}, Path("."), "Synthetic", label)
+        self.assertEqual(captured, ["adc_spectra", "mip_fitted_spectra", "mip_mpv_by_channel"])
+
+    def test_paired_gain_fit_and_window(self):
+        x = np.array([0, 700, 1500, 2000, 5000, 6500, 8000])
+        y = np.rint(50 + .38 * x).astype(int)
+        expected = [False, True, True, True, True, True, False]
+        np.testing.assert_array_equal(fit_window(x, y), expected)
+        selected = fit_window(x, y)
+        intercept, slope, error = gain_fit(x[selected], y[selected])
+        self.assertAlmostEqual(slope, .38)
+        self.assertAlmostEqual(intercept, 50)
+        self.assertGreaterEqual(error, 0)
+        self.assertIsNone(gain_fit(x[:2], y[:2]))
+        with tempfile.TemporaryDirectory() as temp:
+            data = Path(temp) / "paired.csv"
+            data.write_text("Trg_Id,Board_Id,CH_Id,PHA_HG,PHA_LG\n"
+                            "1,0,0,1000,430\n1,0,1,2000,810\n2,1,0,3000,1190\n")
+            groups, count = read_pairs(data, 0)
+            self.assertEqual(count, 1)
+            np.testing.assert_array_equal(groups[0], [[1000, 430]])
+            np.testing.assert_array_equal(groups[1], [[2000, 810]])
 
     def test_garwood_limits(self):
         lo, hi = garwood([0, 1, 10])
@@ -75,7 +122,8 @@ class AnalysisTests(unittest.TestCase):
                 writer.writerows((i, 0, 0, min(8191, 2 * int(code)), code)
                                  for i, code in enumerate(codes))
             result = subprocess.run([sys.executable, str(ANALYSIS / "adc_mip.py"),
-                                     str(data), "--out-dir", str(out), "--label", "Synthetic"],
+                                     str(data), "--out-dir", str(out), "--label", "Synthetic",
+                                     "--live-seconds", "1200"],
                                     text=True, capture_output=True, timeout=120)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             for name in ("adc_spectra", "mip_fitted_spectra", "mip_mpv_by_channel"):

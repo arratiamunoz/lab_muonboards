@@ -31,9 +31,9 @@ def garwood(counts):
     return low, high
 
 
-def plot_mpv(fs, output, label):
+def plot_mpv(fs, output, label, summary):
     fig,axs=plt.subplots(1,2,figsize=(11.4,5.05),sharex=True)
-    fig.subplots_adjust(left=.08,right=.973,bottom=.16,top=.778,wspace=.25)
+    fig.subplots_adjust(left=.08,right=.973,bottom=.16,top=.73,wspace=.25)
     results = {}
     for gain,ax in zip(("LG","HG"),axs):
         good = np.array([fs.get(f"{gain}{j:02d}") is not None for j in ch])
@@ -66,12 +66,13 @@ def plot_mpv(fs, output, label):
         ax.set_ylabel("MPV (ADC codes)",fontsize=11)
         ax.set_title("Low gain" if gain=="LG" else "High gain",loc="left",
                      fontweight="bold",color=color,fontsize=13,pad=9)
-        summary = (f"{len(mid)} channels    Mean {mean:,.0f} ADC    Relative spread "
+        panel_summary = (f"{len(mid)} channels    Mean {mean:,.0f} ADC    Relative spread "
                    f"{spread:.1f}%" if len(mid) else "No finite MPV estimates")
-        ax.text(.035, .055, summary,
+        ax.text(.035, .055, panel_summary,
                 transform=ax.transAxes,fontsize=8.85,va="bottom",ha="left")
     fig.text(.08,.95,f"{label} | MIP-like peak position",fontsize=20.5,weight="bold",va="top")
-    fig.text(.08,.875,"Minuit2   /   Colored bars: statistical   /   Gray lines: fit-window and shape variation",
+    fig.text(.08, .875, summary, color="#465963", fontsize=10.2, va="top")
+    fig.text(.08,.827,"Minuit2   /   Colored bars: statistical   /   Gray lines: fit-window and shape variation",
              color="#465963",fontsize=10.2,va="top")
     save(fig, output / "mip_mpv_by_channel")
     plt.close(fig)
@@ -102,15 +103,15 @@ def plot_spectra(h, output, label, summary, metadata, ymax, fs=None):
         ax.tick_params(which='both',top=True,right=True,labelsize=9.4)
         ax.text(.93,.89,f'Ch {j:02d}',transform=ax.transAxes,fontsize=9.6,weight='bold',ha='right',zorder=12)
     fig.text(.092,.959,f'{label} | {"MIP-like pulse-height fits" if fs else "Pulse-height spectra"}',fontsize=21,weight='bold',va='top')
-    fig.text(.092,.908,summary + ('  /  Minuit peak fits + flat background' if fs else ''),color='#465963',fontsize=10.25,va='top')
-    more='Points: 68.27% Poisson bars   /   Curves shown over fit windows   /   Triangles: above scale'
+    fig.text(.092,.908,summary,color='#465963',fontsize=10.25,va='top')
+    more='64 ADC per bin   /   Curves shown over fit windows   /   Triangles: above scale'
     if gaussian_labels:
-        more = ("68.27% Poisson bars   /   Gray models: Gaussian limit   /   "
+        more = ("64 ADC per bin   /   Gray models: Gaussian limit   /   "
                 "Triangles: above scale")
         if len(gaussian_labels) <= 4:
-            more = ("68.27% Poisson bars   /   Gaussian limit: "
+            more = ("64 ADC per bin   /   Gaussian limit: "
                     + ", ".join(gaussian_labels) + "   /   Triangles: above scale")
-    if not fs: more='68.27% Poisson intervals (Garwood)   /   Zero-count bins not drawn   /   Triangles: above scale'
+    if not fs: more='64 ADC per bin   /   Triangles: above scale'
     fig.text(.092,.871,more,color='#465963',fontsize=9.6,va='top')
     fig.text(.092,.841,metadata,color='#465963',fontsize=9.1,va='top')
     fig.legend([Line2D([0],[0],color=cols[g],marker=marks[g],lw=1.15,ms=4,
