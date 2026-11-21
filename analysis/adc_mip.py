@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from fit import fit_accepted, fit_spectrum
+from refine import estimate_peak
 from plot import plot_mpv, plot_spectra
 
 
@@ -42,32 +42,36 @@ def read_histograms(path, board=0):
 
 
 def write_fit_table(path, fits):
-    keys = ("mpv", "err", "drift", "lo", "hi", "nfit", "dev", "dof", "pval",
-            "mu", "w", "s", "f")
+    fields = {
+        "model": "Model", "mpv": "Convolved_MPV_ADC",
+        "stat_low": "Stat_minus_ADC", "stat_high": "Stat_plus_ADC",
+        "stat_method": "Stat_interval_method",
+        "variation_lo": "Fit_variation_min_ADC", "variation_hi": "Fit_variation_max_ADC",
+        "drift": "Max_Fit_Variation_ADC", "lo": "Window_Low_ADC", "hi": "Window_High_ADC",
+        "nfit": "Fit_Entries", "dev": "Poisson_Deviance", "dof": "Degrees_of_Freedom",
+        "pval": "Approximate_P_Value", "mu": "Model_Location_ADC",
+        "w": "Landau_Scale_ADC", "s": "Gaussian_Sigma_ADC", "f": "Background_Fraction",
+        "few": "Bins_Expected_lt_5"
+    }
     with path.open("w", newline="", encoding="utf-8") as output:
         writer = csv.writer(output)
-        writer.writerow(["Gain", "Channel", "Convolved_MPV_ADC", "Stat_1sigma_ADC",
-                         "Max_Window_Shift_ADC", "Window_Low_ADC", "Window_High_ADC",
-                         "Fit_Entries", "Poisson_Deviance", "Degrees_of_Freedom",
-                         "Approximate_P_Value", "Landau_Location_ADC", "Landau_Scale_ADC",
-                         "Gaussian_Sigma_ADC", "Background_Fraction", "Accepted",
-                         "Review_Reason", "Near_Parameter_Limit", "Bins_Expected_lt_5",
-                         "Alternate_Windows_Low_High_MPV_ADC"])
+        writer.writerow(["Gain", "Channel", *fields.values(), "Estimated", "Fit_Diagnostics",
+                         "Near_Parameter_Limit", "Alternate_Windows_Low_High_MPV_ADC"])
         for gain in ("LG", "HG"):
             for channel in range(16):
                 fit = fits[f"{gain}{channel:02d}"]
                 if fit is None:
-                    writer.writerow([gain, channel, *([""] * len(keys)), False,
-                                     "insufficient fit-window entries", "", "", ""])
+                    writer.writerow([gain, channel, *([""] * len(fields)), False,
+                                     "No finite fit estimate", "", ""])
                     continue
                 reasons = fit["flags"] + ([] if fit["accurate"] else ["covariance"])
                 values = [format(fit[key], ".8g") if isinstance(fit[key], float)
-                          else fit[key] for key in keys]
+                          and math.isfinite(fit[key]) else
+                          "" if isinstance(fit[key], float) else fit[key] for key in fields]
                 alternatives = "; ".join(
                     f"{item['lo']}-{item['hi']}:{item['mpv']:.1f}" for item in fit["alts"])
-                writer.writerow([gain, channel, *values, fit_accepted(fit),
-                                 "; ".join(reasons), "; ".join(fit["bounds"]),
-                                 fit["few"], alternatives])
+                writer.writerow([gain, channel, *values, True, "; ".join(reasons),
+                                 "; ".join(fit["bounds"]), alternatives])
 
 
 def main(argv=None):
@@ -103,14 +107,14 @@ def main(argv=None):
                  args.setup, args.spectra_ymax)
     if args.spectra_only:
         return
-    fits = {f"{gain}{channel:02d}": fit_spectrum(gain, histograms[index, channel])
+    fits = {f"{gain}{channel:02d}": estimate_peak(gain, histograms[index, channel])
             for index, gain in enumerate(("HG", "LG")) for channel in range(16)}
     plot_spectra(histograms, output, label, f"{triggers:,} saved triggers  /  64 ADC per bin",
                  args.setup, args.fits_ymax, fits)
     stats = plot_mpv(fits, output, label)
     write_fit_table(output / "mip_fit_results.csv", fits)
     for gain, result in stats.items():
-        print(f"{gain}: {result['n']}/16 accepted; mean {result['mean']:.2f} ADC; "
+        print(f"{gain}: {result['n']}/16 estimated; mean {result['mean']:.2f} ADC; "
               f"relative population spread {result['spread']:.2f}%")
 
 

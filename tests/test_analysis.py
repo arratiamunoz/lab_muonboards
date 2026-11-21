@@ -12,6 +12,8 @@ sys.path.insert(0, str(ANALYSIS))
 from adc_mip import read_histograms
 from fit import EDGES, GRID_START, STEP, dist, fit_accepted, fit_spectrum, mode
 from plot import garwood
+from refine import GAUSSIAN, estimate_peak
+from scipy.special import ndtr
 
 
 class AnalysisTests(unittest.TestCase):
@@ -31,6 +33,22 @@ class AnalysisTests(unittest.TestCase):
         lo, hi = garwood([0, 1, 10])
         np.testing.assert_allclose(lo, [0, 0.172753779, 6.891305561], rtol=1e-7)
         np.testing.assert_allclose(hi, [1.841021645, 3.299526559, 14.266949761], rtol=1e-7)
+
+    def test_gaussian_limit_keeps_mode_and_profiles_intervals(self):
+        peak, width = 1850.0, 420.0
+        masses = np.diff(ndtr((EDGES - peak) / width))
+        counts = np.rint(18000 * masses + 15).astype(int)
+        fit = estimate_peak("LG", counts)
+        self.assertIsNotNone(fit)
+        self.assertEqual(fit["model"], GAUSSIAN)
+        self.assertEqual(fit["stat_method"], "Minuit2 MINOS")
+        self.assertAlmostEqual(fit["mpv"], peak, delta=10)
+        self.assertGreater(fit["stat_low"], 0)
+        self.assertGreater(fit["stat_high"], 0)
+        self.assertLessEqual(fit["variation_lo"], fit["mpv"])
+        self.assertGreaterEqual(fit["variation_hi"], fit["mpv"])
+        self.assertEqual(len(fit["curve_x"]), len(fit["curve_y"]))
+        self.assertAlmostEqual(sum(fit["expected"]), fit["nfit"], places=7)
 
     def test_peak_recovery_and_cli_smoke(self):
         model = (1750.0, 155.0, 240.0)
@@ -68,7 +86,7 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(len(result_csv), 32)
             self.assertEqual(result_csv[0]["Gain"], "LG")
             self.assertLess(abs(float(result_csv[0]["Convolved_MPV_ADC"]) - mode(*model)), 60)
-            self.assertEqual(result_csv[1]["Accepted"], "False")
+            self.assertEqual(result_csv[1]["Estimated"], "False")
 
 
 if __name__ == "__main__":

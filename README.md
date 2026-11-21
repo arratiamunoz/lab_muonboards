@@ -17,9 +17,9 @@ The input needs `Trg_Id,Board_Id,CH_Id,PHA_HG,PHA_LG` columns and decimal ADC co
 ## Outputs
 
 - `adc_spectra.{png,pdf}`: both gains on the full 0–8192 ADC range, 64 ADC per bin, with asymmetric central 68.27% Garwood count intervals. Zero counts are omitted from the display; triangles mark groups of off-scale bins.
-- `mip_fitted_spectra.{png,pdf}`: Landau–Gaussian signal plus flat background, fitted with iminuit/Minuit2 and a binned Poisson deviance. Expected counts are integrated over each bin, including zero bins within the fit windows. Separate HG/LG windows exclude the pedestal and ADC rail.
-- `mip_mpv_by_channel.{png,pdf}`: maximum of the convolved signal, not the unconvolved Landau location, with statistical errors propagated from the Hesse covariance. Relative spread is the unweighted population standard deviation divided by the accepted-channel mean.
-- `mip_fit_results.csv`: MPVs, statistical uncertainties, fit windows, fit validity diagnostics and alternate-window shifts. Fits are checked with three initializations and two alternate windows. Open crossed markers and dashed fit curves denote provisional estimates that do not enter the channel summary. No estimate is reported for a nominal fit window with fewer than 20 entries.
+- `mip_fitted_spectra.{png,pdf}`: Landau–Gaussian signal plus flat background, fitted with iminuit/Minuit2 and a binned Poisson deviance. Expected counts are integrated over each bin, including zero bins within the fit windows. Separate HG/LG windows exclude the pedestal and ADC rail. When the fitted Landau width remains at its lower bound after a finer-grid refit, try the nested Gaussian limit.
+- `mip_mpv_by_channel.{png,pdf}`: maximum of the convolved signal, not the unconvolved Landau location, with statistical uncertainties and gray lines showing the range of MPVs across windows and, for Gaussian-limit fits, both peak shapes. Both vertical axes start at zero. The mean and relative population spread use every finite MPV.
+- `mip_fit_results.csv`: MPVs, asymmetric statistical intervals, fit variation, windows, and diagnostics. The initial fit uses three starts and two alternate windows. For flagged fits, a finer-grid refit relaxes the background cap and Landau width floor, and MINOS profiles the MPV when it converges. Other statistical intervals use Hesse covariance. A nominal fit window needs at least 20 entries.
 
 The fit windows are tuned for the Run 16 HG/LG response; validate the chosen windows before analyzing data with different gain settings. The tests use synthetic data only.
 
