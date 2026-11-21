@@ -27,3 +27,7 @@ The input needs `Trg_Id,Board_Id,CH_Id,PHA_HG,PHA_LG` columns and decimal ADC co
 The fit windows are tuned for the Run 16 HG/LG response; validate the chosen windows before analyzing data with different gain settings. The tests use synthetic data only.
 
 Method references: [ROOT Landau–Gaussian fit](https://root.cern/doc/master/langaus_8C.html), [iminuit binned-fit examples](https://scikit-hep.org/iminuit/notebooks/binned_vs_unbinned.html).
+
+## JANUS run file finalization
+
+[Patch and application guide](janus/file-finalization/README.md) for CAEN JANUS 5.0.4 / FERSlib 2.2.5. Includes offline tests for successful saves, I/O failures, and preserving existing run files.
