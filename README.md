@@ -1,6 +1,6 @@
 # CAEN A5202 bench analysis
 
-Read-only analysis of archived JANUS list-mode CSVs. Reproduces the Run 16 high-gain and low-gain pulse-height spectra and Minuit2 MIP-like peak fits for channels 0–15. No run data or hardware-control code is included.
+Read-only analysis of archived JANUS list-mode CSVs. Reproduces the Run 16 high-gain and low-gain pulse-height spectra and Minuit2 MIP-like peak fits for channels 0–15. No run data is included. This repository also contains the portable JANUS control primitives and a bench operations guide.
 
 ## Run
 
@@ -31,3 +31,9 @@ Method references: [ROOT Landau–Gaussian fit](https://root.cern/doc/master/lan
 ## JANUS run file finalization
 
 [Patch and application guide](janus/file-finalization/README.md) for CAEN JANUS 5.0.4 / FERSlib 2.2.5. Includes offline tests for successful saves, I/O failures, and preserving existing run files.
+
+## JANUS bench operations
+
+- [Controller and operator guide](janus/README.md)
+- [Portable first-party controller](janus/controller.py)
+- [NeoLattice Autonomous Lab](https://neolattice-autonomous-lab.nandux-6751.chatgpt.site) for run monitoring
